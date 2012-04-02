@@ -42,13 +42,11 @@ static NSMutableDictionary *timeZonesByOffset;
 }
 
 + (void) purgeGlobalCaches {
-	NSMutableDictionary *oldCache = timeZonesByOffset;
 	timeZonesByOffset = nil;
-	[oldCache release];
 }
 
 - (NSCalendar *) makeCalendarWithDesiredConfiguration {
-	NSCalendar *calendar = [[[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar] autorelease];
+	NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
 	calendar.firstWeekday = 2; //Monday
 	calendar.timeZone = [NSTimeZone defaultTimeZone];
 	return calendar;
@@ -56,8 +54,8 @@ static NSMutableDictionary *timeZonesByOffset;
 
 - (id) init {
 	if ((self = [super init])) {
-		parsingCalendar = [[self makeCalendarWithDesiredConfiguration] retain];
-		unparsingCalendar = [[self makeCalendarWithDesiredConfiguration] retain];
+		parsingCalendar = [self makeCalendarWithDesiredConfiguration];
+		unparsingCalendar = [self makeCalendarWithDesiredConfiguration];
 
 		format = ISO8601DateFormatCalendar;
 		timeSeparator = ISO8601DefaultTimeSeparatorCharacter;
@@ -66,22 +64,11 @@ static NSMutableDictionary *timeZonesByOffset;
 	}
 	return self;
 }
-- (void) dealloc {
-	[defaultTimeZone release];
-
-	[unparsingFormatter release];
-	[lastUsedFormatString release];
-	[parsingCalendar release];
-	[unparsingCalendar release];
-
-	[super dealloc];
-}
 
 @synthesize defaultTimeZone;
 - (void) setDefaultTimeZone:(NSTimeZone *)tz {
 	if (defaultTimeZone != tz) {
-		[defaultTimeZone release];
-		defaultTimeZone = [tz retain];
+		defaultTimeZone = tz;
 
 		unparsingCalendar.timeZone = defaultTimeZone;
 	}
@@ -156,7 +143,7 @@ static BOOL is_leap_year(NSUInteger year);
 - (NSDateComponents *) dateComponentsFromString:(NSString *)string timeZone:(out NSTimeZone **)outTimeZone range:(out NSRange *)outRange {
 	NSDate *now = [NSDate date];
 
-	NSDateComponents *components = [[[NSDateComponents alloc] init] autorelease];
+	NSDateComponents *components = [[NSDateComponents alloc] init];
 	NSDateComponents *nowComponents = [parsingCalendar components:(NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit) fromDate:now];
 
 	NSUInteger
@@ -420,7 +407,7 @@ static BOOL is_leap_year(NSUInteger year);
 							}
 							break;
 
-						case 1:; //-YY; -YY-MM (implicit century)
+						case 1: { //-YY; -YY-MM (implicit century)
 							NSLog(@"(%@) found %lu digits and one hyphen, so this is either -YY or -YY-MM; segment (year) is %lu", string, (unsigned long)num_digits, (unsigned long)segment);
 							NSUInteger current_year = nowComponents.year;
 							NSUInteger current_century = (current_year % 100U);
@@ -435,6 +422,7 @@ static BOOL is_leap_year(NSUInteger year);
 							}
 
 							day = 1U;
+						}
 							break;
 
 						case 2: //--MM; --MM-DD
@@ -578,7 +566,7 @@ static BOOL is_leap_year(NSUInteger year);
 					components.month = month_or_week;
 					break;
 
-				case week:;
+				case week: {
 					//Adapted from <http://personal.ecu.edu/mccartyr/ISOwdALG.txt>.
 					//This works by converting the week date into an ordinal date, then letting the next case handle it.
 					NSUInteger prevYear = year - 1U;
@@ -589,7 +577,7 @@ static BOOL is_leap_year(NSUInteger year);
 					NSUInteger Jan1Weekday = (isLeapYear + G) % 7U;
 					enum { monday, tuesday, wednesday, thursday/*, friday, saturday, sunday*/ };
 					components.day = ((8U - Jan1Weekday) + (7U * (Jan1Weekday > thursday))) + (day - 1U) + (7U * (month_or_week - 2));
-
+				}
 				case dateOnly: //An "ordinal date".
 					break;
 			}
@@ -642,7 +630,7 @@ static BOOL is_leap_year(NSUInteger year);
 
 - (NSString *) replaceColonsInString:(NSString *)timeFormat withTimeSeparator:(unichar)timeSep {
 	if (timeSep != ':') {
-		NSMutableString *timeFormatMutable = [[timeFormat mutableCopy] autorelease];
+		NSMutableString *timeFormatMutable = [timeFormat mutableCopy];
 		[timeFormatMutable replaceOccurrencesOfString:@":"
 		                               	   withString:[NSString stringWithCharacters:&timeSep length:1U]
 	                                      	  options:NSBackwardsSearch | NSLiteralSearch
@@ -679,11 +667,9 @@ static BOOL is_leap_year(NSUInteger year);
 	unparsingCalendar.timeZone = timeZone;
 
 	if (dateFormat != lastUsedFormatString) {
-		[unparsingFormatter release];
 		unparsingFormatter = nil;
 
-		[lastUsedFormatString release];
-		lastUsedFormatString = [dateFormat retain];
+		lastUsedFormatString = dateFormat;
 	}
 
 	if (!unparsingFormatter) {
@@ -782,8 +768,6 @@ static BOOL is_leap_year(NSUInteger year);
 		formatter.dateFormat = [self replaceColonsInString:ISO_TIME_WITH_TIMEZONE_FORMAT withTimeSeparator:timeSep];
 
 		timeString = [formatter stringForObjectValue:date];
-
-		[formatter release];
 	} else
 		timeString = @"";
 
